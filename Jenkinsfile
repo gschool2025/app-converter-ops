@@ -61,7 +61,11 @@ pipeline {
     post {
         success {
             echo "Build and deployment succeeded! Running container ${CONTAINER_NAME} on port ${PORT}."
+            mail to: 'g.gibson.482@studms.ug.edu.pl',
+                 subject: "✅ SUCCESS: app-converter build #${env.BUILD_NUMBER}",
+                 body: "Build #${env.BUILD_NUMBER} was successful.\n\nView it here: ${env.BUILD_URL}"
         }
+
         failure {
             echo "Build failed. Attempting rollback..."
             script {
@@ -71,10 +75,14 @@ pipeline {
                     docker run -d -p 3000:3000 --name app-converter-container app-converter:latest
                 '''
             }
+
+            mail to: 'g.gibson.482@studms.ug.edu.pl',
+                 subject: "❌ FAILURE: app-converter build #${env.BUILD_NUMBER}",
+                 body: "Build #${env.BUILD_NUMBER} failed.\n\nView it here: ${env.BUILD_URL}"
         }
+
         always {
             echo "Pipeline finished at ${new Date()}"
         }
     }
 }
-
