@@ -22,10 +22,8 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                dir('app-converter') {
-                    script {
-                        docker.build(env.DOCKER_IMAGE)
-                    }
+                script {
+                    docker.build(env.DOCKER_IMAGE)
                 }
             }
         }
@@ -46,10 +44,8 @@ pipeline {
 
         stage('Run Docker Container') {
             steps {
-                dir('app-converter') {
-                    script {
-                        docker.image(env.DOCKER_IMAGE).run("-p ${env.PORT}:${env.PORT} -d --name ${env.CONTAINER_NAME}")
-                    }
+                script {
+                    docker.image(env.DOCKER_IMAGE).run("-p ${env.PORT}:${env.PORT} -d --name ${env.CONTAINER_NAME}")
                 }
             }
         }
