@@ -11,7 +11,8 @@ pipeline {
             steps {
                 git url: 'https://github.com/gschool2025/app-converter.git', branch: 'main'
                 script {
-                    env.VERSION = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    // Use Powershell instead of sh to get git commit hash on Windows
+                    env.VERSION = powershell(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                 }
             }
         }
@@ -49,10 +50,11 @@ pipeline {
         stage('Tag and Push Latest') {
             steps {
                 script {
-                    sh "docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest"
-                    // Optional push to Docker Hub: 
-                    // sh "docker push ${DOCKER_IMAGE}:${VERSION}"
-                    // sh "docker push ${DOCKER_IMAGE}:latest"
+                    // Replace sh with powershell for tagging on Windows
+                    powershell "docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest"
+                    // Optional push to Docker Hub:
+                    // powershell "docker push ${DOCKER_IMAGE}:${VERSION}"
+                    // powershell "docker push ${DOCKER_IMAGE}:latest"
                 }
             }
         }
