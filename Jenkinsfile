@@ -26,13 +26,15 @@ pipeline {
 
         stage('Cleanup Existing Container') {
             steps {
-                powershell '''
-                    $containers = docker ps -a -q --filter "name=app-converter-container"
-                    if ($containers) {
-                        docker stop $containers
-                        docker rm $containers
-                    }
-                '''
+                script {
+                    powershell '''
+                        $containers = docker ps -a -q --filter "name=app-converter-container"
+                        if ($containers) {
+                            docker stop $containers
+                            docker rm $containers
+                        }
+                    '''
+                }
             }
         }
 
@@ -46,26 +48,33 @@ pipeline {
 
         stage('Tag and Push Latest') {
             steps {
-                powershell """
-                    docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest
-                    # Optional: uncomment to push
-                    # docker push ${DOCKER_IMAGE}:${VERSION}
-                    # docker push ${DOCKER_IMAGE}:latest
-                """
+                script {
+                    powershell "docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest"
+                    // Uncomment to push to Docker Hub
+                    // powershell "docker push ${DOCKER_IMAGE}:${VERSION}"
+                    // powershell "docker push ${DOCKER_IMAGE}:latest"
+                }
             }
         }
     }
 
     post {
+        success {
+            echo "Build and deployment succeeded! Running container ${CONTAINER_NAME} on port ${PORT}."
+        }
         failure {
-            echo "Build failed. Running rollback container..."
-
-            powershell '''
-                docker stop app-converter-container || Write-Host "No container to stop"
-                docker rm app-converter-container || Write-Host "No container to remove"
-                docker run -d -p 3000:3000 --name app-converter-container app-converter:latest
-                exit $LASTEXITCODE
-            '''
+            echo "Build failed. Attempting rollback..."
+            script {
+                powershell '''
+                    docker stop app-converter-container
+                    docker rm app-converter-container
+                    docker run -d -p 3000:3000 --name app-converter-container app-converter:latest
+                '''
+            }
+        }
+        always {
+            echo "Pipeline finished at ${new Date()}"
         }
     }
 }
+
