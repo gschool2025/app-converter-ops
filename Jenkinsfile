@@ -11,7 +11,6 @@ pipeline {
             steps {
                 git url: 'https://github.com/gschool2025/app-converter.git', branch: 'main'
                 script {
-                    // Use Powershell instead of sh to get git commit hash on Windows
                     env.VERSION = powershell(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
                 }
             }
@@ -27,15 +26,13 @@ pipeline {
 
         stage('Cleanup Existing Container') {
             steps {
-                script {
-                    powershell '''
-                        $containers = docker ps -a -q --filter "name=app-converter-container"
-                        if ($containers) {
-                            docker stop $containers
-                            docker rm $containers
-                        }
-                    '''
-                }
+                powershell '''
+                    $containers = docker ps -a -q --filter "name=app-converter-container"
+                    if ($containers) {
+                        docker stop $containers
+                        docker rm $containers
+                    }
+                '''
             }
         }
 
@@ -49,27 +46,26 @@ pipeline {
 
         stage('Tag and Push Latest') {
             steps {
-                script {
-                    // Replace sh with powershell for tagging on Windows
-                    powershell "docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest"
-                    // Optional push to Docker Hub:
-                    // powershell "docker push ${DOCKER_IMAGE}:${VERSION}"
-                    // powershell "docker push ${DOCKER_IMAGE}:latest"
-                }
+                powershell """
+                    docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest
+                    # Optional: uncomment to push
+                    # docker push ${DOCKER_IMAGE}:${VERSION}
+                    # docker push ${DOCKER_IMAGE}:latest
+                """
             }
         }
     }
 
     post {
         failure {
-            echo "Build failed. Attempting rollback..."
-            script {
-                powershell '''
-                    docker stop app-converter-container
-                    docker rm app-converter-container
-                    docker run -d -p 3000:3000 --name app-converter-container app-converter:latest
-                '''
-            }
+            echo "Build failed. Running rollback container..."
+
+            powershell '''
+                docker stop app-converter-container || Write-Host "No container to stop"
+                docker rm app-converter-container || Write-Host "No container to remove"
+                docker run -d -p 3000:3000 --name app-converter-container app-converter:latest
+                exit $LASTEXITCODE
+            '''
         }
     }
 }
