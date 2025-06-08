@@ -38,7 +38,7 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 script {
-                    docker.image("${env.DOCKER_IMAGE}:latest").run("-p ${env.PORT}:${env.PORT} -d")
+                    docker.image("${env.DOCKER_IMAGE}:latest").run("-p ${env.PORT}:${env.PORT} --name ${env.CONTAINER_NAME} -d")
                 }
             }
         }
