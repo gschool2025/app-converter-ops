@@ -1,97 +1,64 @@
 pipeline {
     agent any
+
     environment {
-        DOCKER_IMAGE = 'app-converter'
+        APP_REPO = 'https://github.com/gschool2025/app-converter.git'
+        IMAGE_NAME = 'converter-app'
         CONTAINER_NAME = 'app-converter-container'
-        PORT = '3000'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/gschool2025/app-converter.git', branch: 'main'
-                script {
-                    env.VERSION = powershell(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
-                }
+                git branch: 'main', url: "${APP_REPO}"
             }
         }
 
         stage('Lint Code with ESLint') {
             steps {
-                script {
-                    // Fail build if lint errors occur
-                    sh 'npx eslint .'
-                }
+                bat 'npm install'
+                bat 'npx eslint .'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                script {
-                    docker.build("${DOCKER_IMAGE}:${VERSION}")
-                }
+                bat "docker build -t %IMAGE_NAME% ."
             }
         }
 
         stage('Cleanup Existing Container') {
             steps {
-                script {
-                    powershell '''
-                        $containers = docker ps -a -q --filter "name=app-converter-container"
-                        if ($containers) {
-                            docker stop $containers
-                            docker rm $containers
-                        }
-                    '''
-                }
+                // Try to stop and remove container if it exists
+                bat 'docker stop %CONTAINER_NAME% || exit 0'
+                bat 'docker rm %CONTAINER_NAME% || exit 0'
             }
         }
 
         stage('Run Docker Container') {
             steps {
-                script {
-                    docker.image("${DOCKER_IMAGE}:${VERSION}").run("-p ${PORT}:${PORT} --name ${CONTAINER_NAME} -d")
-                }
+                bat "docker run -d -p 3000:3000 --name %CONTAINER_NAME% %IMAGE_NAME%"
             }
         }
 
         stage('Tag and Push Latest') {
             steps {
-                script {
-                    powershell "docker tag ${DOCKER_IMAGE}:${VERSION} ${DOCKER_IMAGE}:latest"
-                    // Uncomment to push to Docker Hub
-                    // powershell "docker push ${DOCKER_IMAGE}:${VERSION}"
-                    // powershell "docker push ${DOCKER_IMAGE}:latest"
-                }
+                // Optional: only if you want to push to Docker Hub
+                // withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+                //     bat 'docker login -u %USER% -p %PASS%'
+                //     bat 'docker tag %IMAGE_NAME% %USER%/%IMAGE_NAME%:latest'
+                //     bat 'docker push %USER%/%IMAGE_NAME%:latest'
+                // }
             }
         }
     }
 
     post {
-        success {
-            echo "Build and deployment succeeded! Running container ${CONTAINER_NAME} on port ${PORT}."
-            mail to: 'g.gibson.482@studms.ug.edu.pl',
-                 subject: "✅ SUCCESS: app-converter build #${env.BUILD_NUMBER}",
-                 body: "Build #${env.BUILD_NUMBER} was successful.\n\nView it here: ${env.BUILD_URL}"
-        }
-
         failure {
-            echo "Build failed. Attempting rollback..."
-            script {
-                powershell '''
-                    docker stop app-converter-container
-                    docker rm app-converter-container
-                    docker run -d -p 3000:3000 --name app-converter-container app-converter:latest
-                '''
-            }
-
-            mail to: 'g.gibson.482@studms.ug.edu.pl',
-                 subject: "❌ FAILURE: app-converter build #${env.BUILD_NUMBER}",
-                 body: "Build #${env.BUILD_NUMBER} failed.\n\nView it here: ${env.BUILD_URL}"
-        }
-
-        always {
-            echo "Pipeline finished at ${new Date()}"
+            echo 'Build failed. Attempting rollback...'
+            // Stop and remove the container on failure
+            bat 'docker stop %CONTAINER_NAME% || exit 0'
+            bat 'docker rm %CONTAINER_NAME% || exit 0'
         }
     }
 }
