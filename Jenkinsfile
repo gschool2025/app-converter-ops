@@ -16,6 +16,17 @@ pipeline {
             }
         }
 
+        stage('Lint Codebase') {
+            steps {
+                script {
+                    powershell '''
+                        npm.cmd install
+                        npx.cmd eslint .
+                    ```
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
