@@ -16,6 +16,15 @@ pipeline {
             }
         }
 
+        stage('Lint Code with ESLint') {
+            steps {
+                script {
+                    // Fail build if lint errors occur
+                    sh 'npx eslint .'
+                }
+            }
+        }
+
         stage('Build Docker Image') {
             steps {
                 script {
