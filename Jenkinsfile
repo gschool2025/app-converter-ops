@@ -22,7 +22,7 @@ pipeline {
                     powershell '''
                         npm.cmd install
                         npx.cmd eslint .
-                    ```
+                    '''
                 }
             }
         }
